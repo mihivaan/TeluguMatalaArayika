@@ -1,0 +1,32 @@
+# --------------------------------------------------
+# TLRE - Git Ignore
+# --------------------------------------------------
+
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# SQLite database
+data/*.db
+
+# VS Code workspace settings
+.vscode/
+
+# Linux/macOS temporary files
+.DS_Store
+
+# Windows temporary files
+Thumbs.db
+
+# Python test cache
+.pytest_cache/
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# Miscellaneous
+*.log
