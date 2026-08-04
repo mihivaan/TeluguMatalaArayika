@@ -292,3 +292,186 @@ def get_meanings_for_entry(entry_id: int) -> list[Meaning]:
         rows = cursor.fetchall()
 
     return [row_to_meaning(row) for row in rows]
+
+
+# ==========================================================
+# List All Entries Operation (For GUI / Data Grids)
+# ==========================================================
+
+def get_all_entries() -> list[Entry]:
+    """
+    Retrieve all entries in the database ordered alphabetically
+    by lemma and homograph index.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            SELECT *
+            FROM entries
+            ORDER BY lemma, homograph_index
+            """
+        )
+        rows = cursor.fetchall()
+
+    return [row_to_entry(row) for row in rows]
+
+
+# ==========================================================
+# Entry Update / Delete Operations
+# ==========================================================
+
+def update_entry(entry: Entry) -> bool:
+    """
+    Update an existing Entry.
+    """
+    if entry.id is None:
+        raise ValueError("Entry ID is required for update.")
+
+    validate_provenance(entry.provenance)
+    validate_classification(entry.classification)
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE entries
+            SET
+                headword = ?,
+                lemma = ?,
+                homograph_index = ?,
+                provenance = ?,
+                classification = ?,
+                research_question = ?,
+                notes = ?
+            WHERE id = ?
+            """,
+            (
+                entry.headword,
+                entry.lemma,
+                entry.homograph_index,
+                entry.provenance,
+                entry.classification,
+                entry.research_question,
+                entry.notes,
+                entry.id,
+            ),
+        )
+
+        return cursor.rowcount > 0
+
+
+def delete_entry(entry_id: int) -> bool:
+    """
+    Delete an Entry. Child records are removed automatically via CASCADE.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            DELETE FROM entries
+            WHERE id = ?
+            """,
+            (entry_id,),
+        )
+
+        return cursor.rowcount > 0
+
+
+# ==========================================================
+# Meaning Update / Delete Operations
+# ==========================================================
+
+def update_meaning(meaning: Meaning) -> bool:
+    """
+    Update an existing Meaning.
+    """
+    if meaning.id is None:
+        raise ValueError("Meaning ID is required for update.")
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE meanings
+            SET
+                meaning_order = ?,
+                meaning = ?,
+                notes = ?
+            WHERE id = ?
+            """,
+            (
+                meaning.meaning_order,
+                meaning.meaning,
+                meaning.notes,
+                meaning.id,
+            ),
+        )
+
+        return cursor.rowcount > 0
+
+
+def delete_meaning(meaning_id: int) -> bool:
+    """
+    Delete a Meaning.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            DELETE FROM meanings
+            WHERE id = ?
+            """,
+            (meaning_id,),
+        )
+
+        return cursor.rowcount > 0
+
+
+# ==========================================================
+# Claim Update / Delete Operations
+# ==========================================================
+
+def update_claim(claim: Claim) -> bool:
+    """
+    Update an existing Claim.
+    """
+    if claim.id is None:
+        raise ValueError("Claim ID is required for update.")
+
+    validate_claim_status(claim.status)
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE claims
+            SET
+                claim_text = ?,
+                confidence = ?,
+                evidence_completeness = ?,
+                rationale = ?,
+                status = ?
+            WHERE id = ?
+            """,
+            (
+                claim.claim_text,
+                claim.confidence,
+                claim.evidence_completeness,
+                claim.rationale,
+                claim.status,
+                claim.id,
+            ),
+        )
+
+        return cursor.rowcount > 0
+
+
+def delete_claim(claim_id: int) -> bool:
+    """
+    Delete a Claim.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            DELETE FROM claims
+            WHERE id = ?
+            """,
+            (claim_id,),
+        )
+
+        return cursor.rowcount > 0
