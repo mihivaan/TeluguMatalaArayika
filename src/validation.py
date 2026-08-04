@@ -13,7 +13,7 @@ These functions validate values before they reach the
 database layer.
 """
 
-from constants import (
+from src.constants import (
     PROVENANCE,
     CLASSIFICATION,
     RELATIONSHIP_TYPES,
