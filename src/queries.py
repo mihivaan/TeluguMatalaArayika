@@ -214,22 +214,23 @@ def add_claim(claim: Claim) -> int:
         return cursor.lastrowid
 
 
-def get_claims_for_entry(entry_id: int) -> list[Claim]:
+def get_claims_for_entry(
+    entry_id: int,
+    status: Optional[str] = None,
+) -> list[Claim]:
     """
-    Retrieve every claim associated with an entry.
+    Retrieve claims associated with an entry, optionally filtering by status.
     """
+    if status is not None:
+        validate_claim_status(status)
+        sql = "SELECT * FROM claims WHERE entry_id = ? AND status = ? ORDER BY id"
+        params = (entry_id, status)
+    else:
+        sql = "SELECT * FROM claims WHERE entry_id = ? ORDER BY id"
+        params = (entry_id,)
 
     with get_connection() as conn:
-        cursor = conn.execute(
-            """
-            SELECT *
-            FROM claims
-            WHERE entry_id = ?
-            ORDER BY id
-            """,
-            (entry_id,),
-        )
-
+        cursor = conn.execute(sql, params)
         rows = cursor.fetchall()
 
     return [row_to_claim(row) for row in rows]
