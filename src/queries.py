@@ -233,3 +233,61 @@ def get_claims_for_entry(entry_id: int) -> list[Claim]:
         rows = cursor.fetchall()
 
     return [row_to_claim(row) for row in rows]
+
+# ==========================================================
+# Meaning Operations
+# ==========================================================
+
+def create_meaning(meaning: Meaning) -> int:
+    """
+    Insert a new Meaning into the database.
+
+    Returns
+    -------
+    int
+        Newly generated meaning ID.
+    """
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO meanings (
+                entry_id,
+                meaning_order,
+                meaning,
+                notes
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                meaning.entry_id,
+                meaning.meaning_order,
+                meaning.meaning,
+                meaning.notes,
+            ),
+        )
+
+        return cursor.lastrowid
+
+
+def get_meanings_for_entry(entry_id: int) -> list[Meaning]:
+    """
+    Retrieve all meanings belonging to an entry.
+
+    Results are ordered by their dictionary meaning order.
+    """
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            SELECT *
+            FROM meanings
+            WHERE entry_id = ?
+            ORDER BY meaning_order
+            """,
+            (entry_id,),
+        )
+
+        rows = cursor.fetchall()
+
+    return [row_to_meaning(row) for row in rows]
