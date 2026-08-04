@@ -1,84 +1,92 @@
 """
 తెలుగు మాటల అరయిక (TLRE)
 
-Database Bootstrap
+Database Bootstrap & Infrastructure
 
 Version: 0.1.0
 Reference Point: RP-005.1
 
-Initializes the SQLite database using schema.sql.
+Initializes and manages SQLite database connections.
 """
 
 from pathlib import Path
 import sqlite3
 import sys
 
+# ==========================================================
+# Project Paths (Single Source of Truth)
+# ==========================================================
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+SCHEMA_PATH = PROJECT_ROOT / "schema.sql"
+
+DATA_DIRECTORY = PROJECT_ROOT / "data"
+
+DATABASE_PATH = DATA_DIRECTORY / "tlre.db"
+
 
 def get_project_root() -> Path:
     """
-    Returns the root directory of the TLRE project.
-
-    Since this file lives inside src/,
-    its parent directory is the project root.
+    Return the root directory of the TLRE project.
     """
-    return Path(__file__).resolve().parent.parent
+    return PROJECT_ROOT
+
+
+def get_connection() -> sqlite3.Connection:
+    """
+    Create and return a configured SQLite connection.
+
+    Configuration:
+    - Foreign keys enabled (PRAGMA foreign_keys = ON;).
+    - sqlite3.Row row factory enabled (dictionary-style column access).
+
+    Returns
+    -------
+    sqlite3.Connection
+    """
+    connection = sqlite3.connect(DATABASE_PATH)
+    connection.execute("PRAGMA foreign_keys = ON;")
+    connection.row_factory = sqlite3.Row
+    return connection
 
 
 def initialize_database() -> None:
     """
-    Creates (or updates) the SQLite database
+    Create (or re-initialize) the SQLite database
     using the schema.sql script.
     """
+    DATA_DIRECTORY.mkdir(exist_ok=True)
 
-    project_root = get_project_root()
-
-    schema_path = project_root / "schema.sql"
-
-    data_directory = project_root / "data"
-
-    database_path = data_directory / "tlre.db"
-
-    data_directory.mkdir(exist_ok=True)
-
-    if not schema_path.exists():
-        print(f"ERROR: schema.sql not found:\n{schema_path}")
+    if not SCHEMA_PATH.exists():
+        print(f"ERROR: schema.sql not found:\n{SCHEMA_PATH}")
         sys.exit(1)
 
     print("========================================")
     print("TLRE Database Initialization")
     print("========================================")
-    print(f"Project : {project_root}")
-    print(f"Schema  : {schema_path}")
-    print(f"Database: {database_path}")
+    print(f"Project : {PROJECT_ROOT}")
+    print(f"Schema  : {SCHEMA_PATH}")
+    print(f"Database: {DATABASE_PATH}")
     print()
 
     try:
-
-        with sqlite3.connect(database_path) as connection:
-
-            connection.execute("PRAGMA foreign_keys = ON;")
-
-            with schema_path.open(
-                mode="r",
-                encoding="utf-8"
-            ) as schema_file:
-
+        with get_connection() as connection:
+            with SCHEMA_PATH.open(mode="r", encoding="utf-8") as schema_file:
                 schema_sql = schema_file.read()
 
             connection.executescript(schema_sql)
 
         print("Database initialized successfully.")
-        print(f"SQLite database created at:\n{database_path}")
+        print(f"SQLite database created at:\n{DATABASE_PATH}")
 
     except sqlite3.Error as error:
-
-        print("SQLite Error")
+        print("SQLite Error:")
         print(error)
         sys.exit(1)
 
     except OSError as error:
-
-        print("File Error")
+        print("File Error:")
         print(error)
         sys.exit(1)
 
