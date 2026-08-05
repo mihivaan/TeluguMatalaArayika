@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 
 from src.gui.claim_editor import ClaimEditorDialog
 from src.gui.meaning_editor import MeaningEditorDialog
+from src.gui.note_editor import NoteEditorDialog
 from src.gui.question_editor import QuestionEditorDialog
 from src.models import Entry
 from src.queries import (
@@ -198,6 +199,8 @@ class EntryInspectorDialog(QDialog):
         self.add_question_button.clicked.connect(self.on_add_question)
         self.questions_list.itemDoubleClicked.connect(self.on_edit_question)
 
+        self.add_note_button.clicked.connect(self.on_add_note)
+
         self.main_layout.addWidget(self.tab_widget)
 
         # Load initial tab data
@@ -302,7 +305,7 @@ class EntryInspectorDialog(QDialog):
                 else ""
             )
 
-            item = QListWidgetItem(f"{timestamp}\n{note.note_text}")
+            item = QListWidgetItem(f"[{timestamp}]\n{note.note_text}")
             item.setData(Qt.UserRole, note)
             self.notes_list.addItem(item)
 
@@ -419,6 +422,19 @@ class EntryInspectorDialog(QDialog):
 
         if dialog.exec() == QDialog.Accepted:
             self.load_questions()
+
+    def on_add_note(self) -> None:
+        """
+        Add a new timestamped research journal note for this Entry.
+        """
+
+        dialog = NoteEditorDialog(
+            entry_id=self.entry.id,
+            parent=self,
+        )
+
+        if dialog.exec() == QDialog.Accepted:
+            self.load_notes()
 
 
 # ==========================================================
