@@ -11,6 +11,7 @@ research questions, and research notes.
 """
 
 from __future__ import annotations
+from src.gui.meaning_editor import MeaningEditorDialog
 
 import sqlite3
 import sys
@@ -135,6 +136,14 @@ class EntryInspectorDialog(QDialog):
 
         self.tab_widget.addTab(meanings_widget, "📖 Meanings")
 
+        self.add_meaning_button.clicked.connect(
+            self.on_add_meaning
+        )
+
+        self.meanings_list.itemDoubleClicked.connect(
+            self.on_edit_meaning
+        )
+
         # ==================================================
         # Claims Tab
         # ==================================================
@@ -210,6 +219,7 @@ class EntryInspectorDialog(QDialog):
             item = QListWidgetItem(
                 f"{meaning.meaning_order}. {meaning.meaning}"
             )
+            item.setData(Qt.UserRole, meaning)
             self.meanings_list.addItem(item)
 
     def load_claims(self) -> None:
@@ -230,7 +240,7 @@ class EntryInspectorDialog(QDialog):
 
             if claim.rationale:
                 item.setToolTip(claim.rationale)
-
+            item.setData(Qt.UserRole, claim)
             self.claims_list.addItem(item)
 
     def load_questions(self) -> None:
@@ -268,7 +278,7 @@ class EntryInspectorDialog(QDialog):
 
                 if question.resolution_summary:
                     item.setToolTip(question.resolution_summary)
-
+                item.setData(Qt.UserRole, question)
                 self.questions_list.addItem(item)
 
                 add_branch(
@@ -296,7 +306,7 @@ class EntryInspectorDialog(QDialog):
             )
 
             item = QListWidgetItem(f"{timestamp}\n{note.note_text}")
-
+            item.setData(Qt.UserRole, note)
             self.notes_list.addItem(item)
 
     # --------------------------------------------------
@@ -316,6 +326,20 @@ class EntryInspectorDialog(QDialog):
             self.load_questions()
         elif index == 3:
             self.load_notes()
+
+
+    def on_add_meaning(self) -> None:
+        dialog = MeaningEditorDialog(entry_id=self.entry.id, parent=self)
+        if dialog.exec() == QDialog.Accepted:
+            self.load_meanings()
+
+    def on_edit_meaning(self, item: QListWidgetItem) -> None:
+        meaning = item.data(Qt.UserRole)
+        if meaning is None:
+            return
+        dialog = MeaningEditorDialog(entry_id=self.entry.id, meaning=meaning, parent=self)
+        if dialog.exec() == QDialog.Accepted:
+            self.load_meanings()
 
 
 # ==========================================================

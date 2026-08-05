@@ -11,7 +11,7 @@ Research Environment.
 """
 
 from __future__ import annotations
-
+from src.gui.entry_view import EntryInspectorDialog
 import sys
 
 from PySide6.QtWidgets import (
@@ -88,12 +88,14 @@ class TLREMainWindow(QMainWindow):
         self.search_button = QPushButton("Search")
         self.refresh_button = QPushButton("Refresh")
         self.add_entry_button = QPushButton("Add Entry")
+        self.inspect_button = QPushButton("Inspect Entry")
 
         search_layout.addWidget(search_label)
         search_layout.addWidget(self.search_input)
         search_layout.addWidget(self.search_button)
         search_layout.addWidget(self.refresh_button)
         search_layout.addWidget(self.add_entry_button)
+        search_layout.addWidget(self.inspect_button)
 
         main_layout.addLayout(search_layout)
 
@@ -151,7 +153,10 @@ class TLREMainWindow(QMainWindow):
         self.search_button.clicked.connect(self.on_search)
         self.refresh_button.clicked.connect(self.on_refresh)
         self.add_entry_button.clicked.connect(self.on_add_entry)
+        self.inspect_button.clicked.connect(self.on_inspect_entry)
         self.search_input.returnPressed.connect(self.on_search)
+
+        # Double-click row directly edits the entry
         self.table.cellDoubleClicked.connect(self.on_edit_entry)
 
     # --------------------------------------------------
@@ -263,6 +268,28 @@ class TLREMainWindow(QMainWindow):
 
         if dialog.exec() == QDialog.Accepted:
             self.load_entries()
+
+
+    def on_inspect_entry(
+        self,
+        row: int | None = None,
+        column: int | None = None,
+    ) -> None:
+        if row is None:
+            row = self.table.currentRow()
+        if row < 0:
+            return
+
+        item = self.table.item(row, 0)
+        if item is None:
+            return
+
+        entry = get_entry_by_id(int(item.text()))
+        if entry is None:
+            return
+
+        dialog = EntryInspectorDialog(entry=entry, parent=self)
+        dialog.exec()
 
 
 # ==========================================================
