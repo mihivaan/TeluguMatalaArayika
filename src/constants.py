@@ -107,3 +107,28 @@ CLAIM_STATUSES = (
     "Superseded",
     "Draft",
 )
+
+# ==========================================================
+# Research Question Statuses
+# ==========================================================
+
+RESEARCH_QUESTION_STATUSES = (
+    "Open",
+    "In Progress",
+    "Partially Resolved",
+    "Fully Resolved",
+    "Superseded",
+    "Abandoned",
+    "Unresolved",
+)
+
+# ==========================================================
+# Question Relationship Types
+# ==========================================================
+
+QUESTION_RELATIONSHIP_TYPES = (
+    "linked_to",
+    "derived_from",
+    "merged_with",
+    "depends_on",
+)

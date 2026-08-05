@@ -32,8 +32,7 @@ class Entry:
     provenance: str = "Unknown"
     classification: str = "Unknown"
 
-    research_question: Optional[str] = None
-    notes: Optional[str] = None
+   
 
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -201,5 +200,57 @@ class AuditLog:
     entity_id: int = 0
 
     change_summary: str = ""
+
+    created_at: Optional[datetime] = None
+
+# ==========================================================
+# Research Question
+# ==========================================================
+
+@dataclass(slots=True)
+class ResearchQuestion:
+    id: Optional[int] = None
+
+    entry_id: int = 0
+    parent_question_id: Optional[int] = None
+
+    question_text: str = ""
+
+    status: str = "Open"
+
+    resolution_summary: Optional[str] = None
+
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+# ==========================================================
+# Question Relationship
+# ==========================================================
+
+@dataclass(slots=True)
+class QuestionRelationship:
+    id: Optional[int] = None
+
+    from_question_id: int = 0
+    to_question_id: int = 0
+
+    relationship_type: str = ""
+
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+# ==========================================================
+# Research Note
+# ==========================================================
+
+@dataclass(slots=True)
+class ResearchNote:
+    id: Optional[int] = None
+
+    entry_id: int = 0
+
+    note_text: str = ""
 
     created_at: Optional[datetime] = None

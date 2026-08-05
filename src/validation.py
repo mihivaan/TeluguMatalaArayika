@@ -20,6 +20,8 @@ from src.constants import (
     EVIDENCE_TYPES,
     EVIDENCE_ROLES,
     CLAIM_STATUSES,
+    RESEARCH_QUESTION_STATUSES,
+    QUESTION_RELATIONSHIP_TYPES,
 )
 
 
@@ -88,3 +90,13 @@ def validate_evidence_role(value: str) -> str:
 def validate_claim_status(value: str) -> str:
     """Validate claim status."""
     return _validate_choice(value, CLAIM_STATUSES, "claim status")
+
+
+def validate_research_question_status(value: str) -> str:
+    """Validate research question status."""
+    return _validate_choice(value, RESEARCH_QUESTION_STATUSES, "research question status")
+
+
+def validate_question_relationship_type(value: str) -> str:
+    """Validate question relationship type."""
+    return _validate_choice(value, QUESTION_RELATIONSHIP_TYPES, "question relationship type")
