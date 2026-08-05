@@ -275,7 +275,7 @@ class TLREMainWindow(QMainWindow):
         row: int | None = None,
         column: int | None = None,
     ) -> None:
-        if row is None:
+        if row is None or isinstance(row, bool):
             row = self.table.currentRow()
         if row < 0:
             return

@@ -11,7 +11,6 @@ research questions, and research notes.
 """
 
 from __future__ import annotations
-from src.gui.meaning_editor import MeaningEditorDialog
 
 import sqlite3
 import sys
@@ -31,6 +30,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.claim_editor import ClaimEditorDialog
+from src.gui.meaning_editor import MeaningEditorDialog
 from src.models import Entry
 from src.queries import (
     get_claims_for_entry,
@@ -134,15 +135,7 @@ class EntryInspectorDialog(QDialog):
         meanings_layout.addWidget(self.meanings_list)
         meanings_layout.addWidget(self.add_meaning_button)
 
-        self.tab_widget.addTab(meanings_widget, "📖 Meanings")
-
-        self.add_meaning_button.clicked.connect(
-            self.on_add_meaning
-        )
-
-        self.meanings_list.itemDoubleClicked.connect(
-            self.on_edit_meaning
-        )
+        self.tab_widget.addTab(meanings_widget, "Meanings")
 
         # ==================================================
         # Claims Tab
@@ -157,7 +150,7 @@ class EntryInspectorDialog(QDialog):
         claims_layout.addWidget(self.claims_list)
         claims_layout.addWidget(self.add_claim_button)
 
-        self.tab_widget.addTab(claims_widget, "🧠 Claims")
+        self.tab_widget.addTab(claims_widget, "Claims")
 
         # ==================================================
         # Research Questions Tab
@@ -172,10 +165,7 @@ class EntryInspectorDialog(QDialog):
         questions_layout.addWidget(self.questions_list)
         questions_layout.addWidget(self.add_question_button)
 
-        self.tab_widget.addTab(
-            questions_widget,
-            "❓ Research Questions",
-        )
+        self.tab_widget.addTab(questions_widget, "Research Questions")
 
         # ==================================================
         # Journal Notes Tab
@@ -190,12 +180,19 @@ class EntryInspectorDialog(QDialog):
         notes_layout.addWidget(self.notes_list)
         notes_layout.addWidget(self.add_note_button)
 
-        self.tab_widget.addTab(
-            notes_widget,
-            "📝 Journal Notes",
-        )
+        self.tab_widget.addTab(notes_widget, "Journal Notes")
+
+        # ==================================================
+        # Signal Connections (Wired AFTER widgets exist)
+        # ==================================================
 
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
+
+        self.add_meaning_button.clicked.connect(self.on_add_meaning)
+        self.meanings_list.itemDoubleClicked.connect(self.on_edit_meaning)
+
+        self.add_claim_button.clicked.connect(self.on_add_claim)
+        self.claims_list.itemDoubleClicked.connect(self.on_edit_claim)
 
         self.main_layout.addWidget(self.tab_widget)
 
@@ -233,13 +230,11 @@ class EntryInspectorDialog(QDialog):
 
         for claim in claims:
             item = QListWidgetItem(
-                f"[{claim.status}] "
-                f"({claim.confidence:.2f}) "
-                f"{claim.claim_text}"
+                f"[{claim.status}] ({claim.confidence:.2f}) {claim.claim_text}"
             )
-
             if claim.rationale:
                 item.setToolTip(claim.rationale)
+
             item.setData(Qt.UserRole, claim)
             self.claims_list.addItem(item)
 
@@ -269,15 +264,13 @@ class EntryInspectorDialog(QDialog):
 
                 indent = "    " * depth
 
-                text = (
-                    f"{indent}[{question.status}] "
-                    f"{question.question_text}"
-                )
+                text = f"{indent}[{question.status}] {question.question_text}"
 
                 item = QListWidgetItem(text)
 
                 if question.resolution_summary:
                     item.setToolTip(question.resolution_summary)
+
                 item.setData(Qt.UserRole, question)
                 self.questions_list.addItem(item)
 
@@ -310,7 +303,7 @@ class EntryInspectorDialog(QDialog):
             self.notes_list.addItem(item)
 
     # --------------------------------------------------
-    # Tab Events
+    # Tab Events & Action Handlers
     # --------------------------------------------------
 
     def on_tab_changed(self, index: int) -> None:
@@ -327,19 +320,69 @@ class EntryInspectorDialog(QDialog):
         elif index == 3:
             self.load_notes()
 
-
     def on_add_meaning(self) -> None:
-        dialog = MeaningEditorDialog(entry_id=self.entry.id, parent=self)
+        """
+        Create a new Meaning for this Entry.
+        """
+
+        dialog = MeaningEditorDialog(
+            entry_id=self.entry.id,
+            parent=self,
+        )
+
         if dialog.exec() == QDialog.Accepted:
             self.load_meanings()
 
     def on_edit_meaning(self, item: QListWidgetItem) -> None:
+        """
+        Edit an existing Meaning.
+        """
+
         meaning = item.data(Qt.UserRole)
+
         if meaning is None:
             return
-        dialog = MeaningEditorDialog(entry_id=self.entry.id, meaning=meaning, parent=self)
+
+        dialog = MeaningEditorDialog(
+            entry_id=self.entry.id,
+            meaning=meaning,
+            parent=self,
+        )
+
         if dialog.exec() == QDialog.Accepted:
             self.load_meanings()
+
+    def on_add_claim(self) -> None:
+        """
+        Create a new Claim for this Entry.
+        """
+
+        dialog = ClaimEditorDialog(
+            entry_id=self.entry.id,
+            parent=self,
+        )
+
+        if dialog.exec() == QDialog.Accepted:
+            self.load_claims()
+
+    def on_edit_claim(self, item: QListWidgetItem) -> None:
+        """
+        Edit an existing Claim.
+        """
+
+        claim = item.data(Qt.UserRole)
+
+        if claim is None:
+            return
+
+        dialog = ClaimEditorDialog(
+            entry_id=self.entry.id,
+            claim=claim,
+            parent=self,
+        )
+
+        if dialog.exec() == QDialog.Accepted:
+            self.load_claims()
 
 
 # ==========================================================
