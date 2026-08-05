@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 
 from src.gui.claim_editor import ClaimEditorDialog
 from src.gui.meaning_editor import MeaningEditorDialog
+from src.gui.question_editor import QuestionEditorDialog
 from src.models import Entry
 from src.queries import (
     get_claims_for_entry,
@@ -183,7 +184,7 @@ class EntryInspectorDialog(QDialog):
         self.tab_widget.addTab(notes_widget, "Journal Notes")
 
         # ==================================================
-        # Signal Connections (Wired AFTER widgets exist)
+        # Signal Connections
         # ==================================================
 
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
@@ -193,6 +194,9 @@ class EntryInspectorDialog(QDialog):
 
         self.add_claim_button.clicked.connect(self.on_add_claim)
         self.claims_list.itemDoubleClicked.connect(self.on_edit_claim)
+
+        self.add_question_button.clicked.connect(self.on_add_question)
+        self.questions_list.itemDoubleClicked.connect(self.on_edit_question)
 
         self.main_layout.addWidget(self.tab_widget)
 
@@ -240,7 +244,7 @@ class EntryInspectorDialog(QDialog):
 
     def load_questions(self) -> None:
         """
-        Load research questions for the current entry.
+        Load research questions for the current entry and render parent-child tree branches.
         """
 
         self.questions_list.clear()
@@ -383,6 +387,38 @@ class EntryInspectorDialog(QDialog):
 
         if dialog.exec() == QDialog.Accepted:
             self.load_claims()
+
+    def on_add_question(self) -> None:
+        """
+        Create a new Research Question for this Entry.
+        """
+
+        dialog = QuestionEditorDialog(
+            entry_id=self.entry.id,
+            parent=self,
+        )
+
+        if dialog.exec() == QDialog.Accepted:
+            self.load_questions()
+
+    def on_edit_question(self, item: QListWidgetItem) -> None:
+        """
+        Edit an existing Research Question.
+        """
+
+        question = item.data(Qt.UserRole)
+
+        if question is None:
+            return
+
+        dialog = QuestionEditorDialog(
+            entry_id=self.entry.id,
+            question=question,
+            parent=self,
+        )
+
+        if dialog.exec() == QDialog.Accepted:
+            self.load_questions()
 
 
 # ==========================================================
