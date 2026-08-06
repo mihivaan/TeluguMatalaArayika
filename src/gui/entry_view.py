@@ -7,7 +7,7 @@ Version: 0.2.0
 Reference Point: RP-006
 
 Detailed inspector dialog for entries, meanings, claims,
-research questions, and research notes.
+research questions, research notes, and evidence.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QTabWidget,
     QVBoxLayout,
@@ -31,12 +32,14 @@ from PySide6.QtWidgets import (
 )
 
 from src.gui.claim_editor import ClaimEditorDialog
+from src.gui.evidence_editor import EvidenceEditorDialog
 from src.gui.meaning_editor import MeaningEditorDialog
 from src.gui.note_editor import NoteEditorDialog
 from src.gui.question_editor import QuestionEditorDialog
 from src.models import Entry
 from src.queries import (
     get_claims_for_entry,
+    get_evidence_for_claim,
     get_meanings_for_entry,
     get_research_notes_for_entry,
     get_research_questions_for_entry,
@@ -140,7 +143,7 @@ class EntryInspectorDialog(QDialog):
         self.tab_widget.addTab(meanings_widget, "Meanings")
 
         # ==================================================
-        # Claims Tab
+        # Claims Tab (With Evidence Button)
         # ==================================================
 
         claims_widget = QWidget()
@@ -148,9 +151,14 @@ class EntryInspectorDialog(QDialog):
 
         self.claims_list = QListWidget()
         self.add_claim_button = QPushButton("+ Claim")
+        self.add_evidence_button = QPushButton("+ Evidence")
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.add_claim_button)
+        button_layout.addWidget(self.add_evidence_button)
 
         claims_layout.addWidget(self.claims_list)
-        claims_layout.addWidget(self.add_claim_button)
+        claims_layout.addLayout(button_layout)
 
         self.tab_widget.addTab(claims_widget, "Claims")
 
@@ -196,6 +204,8 @@ class EntryInspectorDialog(QDialog):
         self.add_claim_button.clicked.connect(self.on_add_claim)
         self.claims_list.itemDoubleClicked.connect(self.on_edit_claim)
 
+        self.add_evidence_button.clicked.connect(self.on_add_evidence)
+
         self.add_question_button.clicked.connect(self.on_add_question)
         self.questions_list.itemDoubleClicked.connect(self.on_edit_question)
 
@@ -228,7 +238,7 @@ class EntryInspectorDialog(QDialog):
 
     def load_claims(self) -> None:
         """
-        Load claims for the current entry.
+        Load claims and their attached evidence for the current entry.
         """
 
         self.claims_list.clear()
@@ -236,14 +246,32 @@ class EntryInspectorDialog(QDialog):
         claims = get_claims_for_entry(self.entry.id)
 
         for claim in claims:
-            item = QListWidgetItem(
+            claim_item = QListWidgetItem(
                 f"[{claim.status}] ({claim.confidence:.2f}) {claim.claim_text}"
             )
-            if claim.rationale:
-                item.setToolTip(claim.rationale)
 
-            item.setData(Qt.UserRole, claim)
-            self.claims_list.addItem(item)
+            if claim.rationale:
+                claim_item.setToolTip(claim.rationale)
+
+            claim_item.setData(Qt.UserRole, claim)
+            self.claims_list.addItem(claim_item)
+
+            # Fetch and render attached evidence indented under claim
+            evidence_list = get_evidence_for_claim(claim.id)
+
+            for evidence in evidence_list:
+                evidence_text = (
+                    f"    └─ [{evidence.evidence_role}] "
+                    f"{evidence.evidence_text}"
+                )
+
+                evidence_item = QListWidgetItem(evidence_text)
+                evidence_item.setFlags(
+                    evidence_item.flags() & ~Qt.ItemIsSelectable
+                )
+                evidence_item.setToolTip(f"Evidence ID: {evidence.id}")
+
+                self.claims_list.addItem(evidence_item)
 
     def load_questions(self) -> None:
         """
@@ -385,6 +413,39 @@ class EntryInspectorDialog(QDialog):
         dialog = ClaimEditorDialog(
             entry_id=self.entry.id,
             claim=claim,
+            parent=self,
+        )
+
+        if dialog.exec() == QDialog.Accepted:
+            self.load_claims()
+
+    def on_add_evidence(self) -> None:
+        """
+        Attach Evidence to the currently selected Claim.
+        """
+
+        item = self.claims_list.currentItem()
+
+        if item is None:
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select a claim first to attach evidence.",
+            )
+            return
+
+        claim = item.data(Qt.UserRole)
+
+        if claim is None:
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select a claim first to attach evidence.",
+            )
+            return
+
+        dialog = EvidenceEditorDialog(
+            claim_id=claim.id,
             parent=self,
         )
 
