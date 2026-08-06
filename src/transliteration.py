@@ -150,7 +150,6 @@ SPECIAL_SIGNS: Final[dict[str, str]] = {
     "H": "ః",
     # Standalone nukta and avagraha
     "~q": "఼",
-    "~nk": "఼",
     "~a": "ఽ",
     # Reserved / historical markers
     "r^": "౯",

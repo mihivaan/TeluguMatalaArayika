@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.transliteration import rts_to_telugu
 from src.gui.entry_editor import EntryEditorDialog
 from src.models import Entry
 from src.queries import (
@@ -156,7 +157,9 @@ class TLREMainWindow(QMainWindow):
         self.inspect_button.clicked.connect(self.on_inspect_entry)
         self.search_input.returnPressed.connect(self.on_search)
 
-        # Double-click row directly edits the entry
+        # THIS LINE is for live status bar preview as you type:
+        self.search_input.textChanged.connect(self.on_search_text_changed)
+
         self.table.cellDoubleClicked.connect(self.on_edit_entry)
 
     # --------------------------------------------------
@@ -216,7 +219,7 @@ class TLREMainWindow(QMainWindow):
 
     def on_search(self) -> None:
         """
-        Search for entries using the lemma.
+        Search for entries matching literal or phonetic input.
         """
         search_text = self.search_input.text().strip()
 
@@ -224,7 +227,11 @@ class TLREMainWindow(QMainWindow):
             self.load_entries()
             return
 
+        # Try direct match first, then fall back to phonetic transliteration
         entries = find_entries_by_lemma(search_text)
+        if not entries:
+            entries = find_entries_by_lemma(rts_to_telugu(search_text))
+
         self.load_entries(entries)
 
     def on_refresh(self) -> None:
@@ -291,6 +298,21 @@ class TLREMainWindow(QMainWindow):
         dialog = EntryInspectorDialog(entry=entry, parent=self)
         dialog.exec()
 
+
+    def on_search_text_changed(self, text: str) -> None:
+        """
+        Update status bar with live Telugu transliteration preview as user types.
+        """
+        search_text = text.strip()
+        if not search_text:
+            self.status_bar.showMessage("Ready.")
+            return
+
+        telugu = rts_to_telugu(search_text)
+        if telugu != search_text:
+            self.status_bar.showMessage(f"Phonetic → {telugu}")
+        else:
+            self.status_bar.showMessage("Ready.")
 
 # ==========================================================
 # Application Entry Point
