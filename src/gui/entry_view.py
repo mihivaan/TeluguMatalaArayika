@@ -1,4 +1,4 @@
-"""
+"""\
 తెలుగు మాటల అరయిక (TLRE)
 
 Entry Inspector Workspace
@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 
 from src.gui.claim_editor import ClaimEditorDialog
 from src.gui.evidence_editor import EvidenceEditorDialog
+from src.gui.graph_view import LinguisticGraphWindow
 from src.gui.meaning_editor import MeaningEditorDialog
 from src.gui.note_editor import NoteEditorDialog
 from src.gui.question_editor import QuestionEditorDialog
@@ -55,6 +56,7 @@ class EntryInspectorDialog(QDialog):
         super().__init__(parent)
 
         self.entry = entry
+        self.graph_window: LinguisticGraphWindow | None = None
 
         self.setWindowTitle(
             f"Linguistic Inspector — {self.entry.headword} (Lemma: {self.entry.lemma})"
@@ -70,10 +72,6 @@ class EntryInspectorDialog(QDialog):
         self.create_tabs()
 
     def create_header(self) -> None:
-        """
-        Create the top summary card for the current Entry.
-        """
-
         self.header_card = QGroupBox()
         self.header_card.setObjectName("headerCard")
 
@@ -96,7 +94,7 @@ class EntryInspectorDialog(QDialog):
 
         title_label = QLabel("Entry Overview")
         title_label.setObjectName("headerLabelTitle")
-        title_label.setAlignment(Qt.AlignLeft)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         headword_label = QLabel(f"Headword: {self.entry.headword}")
         lemma_label = QLabel(f"Lemma: {self.entry.lemma}")
@@ -105,11 +103,13 @@ class EntryInspectorDialog(QDialog):
         classification_label = QLabel(f"Classification: {self.entry.classification}")
 
         self.edit_entry_button = QPushButton("Edit Entry Core")
+        self.open_graph_button = QPushButton("Open Graph View")
 
         top_row = QHBoxLayout()
         top_row.addWidget(title_label)
         top_row.addStretch(1)
         top_row.addWidget(self.edit_entry_button)
+        top_row.addWidget(self.open_graph_button)
 
         header_layout.addLayout(top_row)
         header_layout.addWidget(headword_label)
@@ -120,17 +120,12 @@ class EntryInspectorDialog(QDialog):
 
         self.main_layout.addWidget(self.header_card)
 
-    def create_tabs(self) -> None:
-        """
-        Create the tabbed inspector workspace.
-        """
+        self.open_graph_button.clicked.connect(self.on_open_graph)
 
+    def create_tabs(self) -> None:
         self.tab_widget = QTabWidget()
 
-        # ==================================================
         # Meanings Tab
-        # ==================================================
-
         meanings_widget = QWidget()
         meanings_layout = QVBoxLayout(meanings_widget)
 
@@ -142,10 +137,7 @@ class EntryInspectorDialog(QDialog):
 
         self.tab_widget.addTab(meanings_widget, "Meanings")
 
-        # ==================================================
-        # Claims Tab (With Evidence Button)
-        # ==================================================
-
+        # Claims Tab
         claims_widget = QWidget()
         claims_layout = QVBoxLayout(claims_widget)
 
@@ -162,10 +154,7 @@ class EntryInspectorDialog(QDialog):
 
         self.tab_widget.addTab(claims_widget, "Claims")
 
-        # ==================================================
         # Research Questions Tab
-        # ==================================================
-
         questions_widget = QWidget()
         questions_layout = QVBoxLayout(questions_widget)
 
@@ -177,10 +166,7 @@ class EntryInspectorDialog(QDialog):
 
         self.tab_widget.addTab(questions_widget, "Research Questions")
 
-        # ==================================================
         # Journal Notes Tab
-        # ==================================================
-
         notes_widget = QWidget()
         notes_layout = QVBoxLayout(notes_widget)
 
@@ -192,10 +178,7 @@ class EntryInspectorDialog(QDialog):
 
         self.tab_widget.addTab(notes_widget, "Journal Notes")
 
-        # ==================================================
         # Signal Connections
-        # ==================================================
-
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
 
         self.add_meaning_button.clicked.connect(self.on_add_meaning)
@@ -213,18 +196,9 @@ class EntryInspectorDialog(QDialog):
 
         self.main_layout.addWidget(self.tab_widget)
 
-        # Load initial tab data
         self.load_meanings()
 
-    # --------------------------------------------------
-    # Tab Loaders
-    # --------------------------------------------------
-
     def load_meanings(self) -> None:
-        """
-        Load meanings for the current entry.
-        """
-
         self.meanings_list.clear()
 
         meanings = get_meanings_for_entry(self.entry.id)
@@ -233,14 +207,10 @@ class EntryInspectorDialog(QDialog):
             item = QListWidgetItem(
                 f"{meaning.meaning_order}. {meaning.meaning}"
             )
-            item.setData(Qt.UserRole, meaning)
+            item.setData(Qt.ItemDataRole.UserRole, meaning)
             self.meanings_list.addItem(item)
 
     def load_claims(self) -> None:
-        """
-        Load claims and their attached evidence for the current entry.
-        """
-
         self.claims_list.clear()
 
         claims = get_claims_for_entry(self.entry.id)
@@ -253,10 +223,9 @@ class EntryInspectorDialog(QDialog):
             if claim.rationale:
                 claim_item.setToolTip(claim.rationale)
 
-            claim_item.setData(Qt.UserRole, claim)
+            claim_item.setData(Qt.ItemDataRole.UserRole, claim)
             self.claims_list.addItem(claim_item)
 
-            # Fetch and render attached evidence indented under claim
             evidence_list = get_evidence_for_claim(claim.id)
 
             for evidence in evidence_list:
@@ -267,17 +236,13 @@ class EntryInspectorDialog(QDialog):
 
                 evidence_item = QListWidgetItem(evidence_text)
                 evidence_item.setFlags(
-                    evidence_item.flags() & ~Qt.ItemIsSelectable
+                    evidence_item.flags() & ~Qt.ItemFlag.ItemIsSelectable
                 )
                 evidence_item.setToolTip(f"Evidence ID: {evidence.id}")
 
                 self.claims_list.addItem(evidence_item)
 
     def load_questions(self) -> None:
-        """
-        Load research questions for the current entry and render parent-child tree branches.
-        """
-
         self.questions_list.clear()
 
         questions = get_research_questions_for_entry(self.entry.id)
@@ -294,7 +259,6 @@ class EntryInspectorDialog(QDialog):
             parent_id: int | None,
             depth: int = 0,
         ) -> None:
-
             for question in children.get(parent_id, []):
 
                 indent = "    " * depth
@@ -306,7 +270,7 @@ class EntryInspectorDialog(QDialog):
                 if question.resolution_summary:
                     item.setToolTip(question.resolution_summary)
 
-                item.setData(Qt.UserRole, question)
+                item.setData(Qt.ItemDataRole.UserRole, question)
                 self.questions_list.addItem(item)
 
                 add_branch(
@@ -317,10 +281,6 @@ class EntryInspectorDialog(QDialog):
         add_branch(None)
 
     def load_notes(self) -> None:
-        """
-        Load research journal notes.
-        """
-
         self.notes_list.clear()
 
         notes = get_research_notes_for_entry(self.entry.id)
@@ -334,18 +294,10 @@ class EntryInspectorDialog(QDialog):
             )
 
             item = QListWidgetItem(f"[{timestamp}]\n{note.note_text}")
-            item.setData(Qt.UserRole, note)
+            item.setData(Qt.ItemDataRole.UserRole, note)
             self.notes_list.addItem(item)
 
-    # --------------------------------------------------
-    # Tab Events & Action Handlers
-    # --------------------------------------------------
-
     def on_tab_changed(self, index: int) -> None:
-        """
-        Lazily load data for the selected tab.
-        """
-
         if index == 0:
             self.load_meanings()
         elif index == 1:
@@ -356,24 +308,16 @@ class EntryInspectorDialog(QDialog):
             self.load_notes()
 
     def on_add_meaning(self) -> None:
-        """
-        Create a new Meaning for this Entry.
-        """
-
         dialog = MeaningEditorDialog(
             entry_id=self.entry.id,
             parent=self,
         )
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_meanings()
 
     def on_edit_meaning(self, item: QListWidgetItem) -> None:
-        """
-        Edit an existing Meaning.
-        """
-
-        meaning = item.data(Qt.UserRole)
+        meaning = item.data(Qt.ItemDataRole.UserRole)
 
         if meaning is None:
             return
@@ -384,28 +328,20 @@ class EntryInspectorDialog(QDialog):
             parent=self,
         )
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_meanings()
 
     def on_add_claim(self) -> None:
-        """
-        Create a new Claim for this Entry.
-        """
-
         dialog = ClaimEditorDialog(
             entry_id=self.entry.id,
             parent=self,
         )
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_claims()
 
     def on_edit_claim(self, item: QListWidgetItem) -> None:
-        """
-        Edit an existing Claim.
-        """
-
-        claim = item.data(Qt.UserRole)
+        claim = item.data(Qt.ItemDataRole.UserRole)
 
         if claim is None:
             return
@@ -416,14 +352,10 @@ class EntryInspectorDialog(QDialog):
             parent=self,
         )
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_claims()
 
     def on_add_evidence(self) -> None:
-        """
-        Attach Evidence to the currently selected Claim.
-        """
-
         item = self.claims_list.currentItem()
 
         if item is None:
@@ -434,7 +366,7 @@ class EntryInspectorDialog(QDialog):
             )
             return
 
-        claim = item.data(Qt.UserRole)
+        claim = item.data(Qt.ItemDataRole.UserRole)
 
         if claim is None:
             QMessageBox.warning(
@@ -449,28 +381,20 @@ class EntryInspectorDialog(QDialog):
             parent=self,
         )
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_claims()
 
     def on_add_question(self) -> None:
-        """
-        Create a new Research Question for this Entry.
-        """
-
         dialog = QuestionEditorDialog(
             entry_id=self.entry.id,
             parent=self,
         )
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_questions()
 
     def on_edit_question(self, item: QListWidgetItem) -> None:
-        """
-        Edit an existing Research Question.
-        """
-
-        question = item.data(Qt.UserRole)
+        question = item.data(Qt.ItemDataRole.UserRole)
 
         if question is None:
             return
@@ -481,26 +405,28 @@ class EntryInspectorDialog(QDialog):
             parent=self,
         )
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_questions()
 
     def on_add_note(self) -> None:
-        """
-        Add a new timestamped research journal note for this Entry.
-        """
-
         dialog = NoteEditorDialog(
             entry_id=self.entry.id,
             parent=self,
         )
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.load_notes()
 
+    def on_open_graph(self) -> None:
+        if self.entry.id is None:
+            return
 
-# ==========================================================
-# Standalone Runner
-# ==========================================================
+        self.graph_window = LinguisticGraphWindow(parent=self)
+        self.graph_window.load_graph_for_entry(int(self.entry.id))
+        self.graph_window.show()
+        self.graph_window.raise_()
+        self.graph_window.activateWindow()
+
 
 def main() -> None:
     app = QApplication(sys.argv)
