@@ -28,6 +28,7 @@ from src.models import (
     Source,
     Citation,
     Evidence,
+    Relationship, 
 )
 from src.validation import (
     validate_provenance,
@@ -37,6 +38,7 @@ from src.validation import (
     validate_question_relationship_type,
     validate_evidence_type,
     validate_evidence_role,
+    validate_relationship_type,
 )
 
 
@@ -1123,3 +1125,68 @@ def get_evidence_for_claim(claim_id: int) -> list[Evidence]:
         rows = cursor.fetchall()
 
     return [row_to_evidence(row) for row in rows]
+
+
+# ==========================================================
+# Word Knowledge Graph Relationship Operations
+# ==========================================================
+
+def row_to_relationship(row: sqlite3.Row) -> Relationship:
+    """Convert a SQLite row into a Relationship dataclass."""
+    return Relationship(
+        id=row["id"],
+        from_entry_id=row["from_entry_id"],
+        to_entry_id=row["to_entry_id"],
+        relationship_type=row["relationship_type"],
+        confidence=row["confidence"],
+        notes=row["notes"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def create_relationship(rel: Relationship) -> int:
+    """
+    Insert a new relationship edge into the database.
+    """
+    validate_relationship_type(rel.relationship_type)
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO relationships (
+                from_entry_id,
+                to_entry_id,
+                relationship_type,
+                confidence,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                rel.from_entry_id,
+                rel.to_entry_id,
+                rel.relationship_type,
+                rel.confidence,
+                rel.notes,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def get_relationships_for_entry(entry_id: int) -> list[Relationship]:
+    """
+    Retrieve all directed relationship edges connected to or from an entry.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            SELECT * FROM relationships
+            WHERE from_entry_id = ? OR to_entry_id = ?
+            ORDER BY id
+            """,
+            (entry_id, entry_id),
+        )
+        rows = cursor.fetchall()
+
+    return [row_to_relationship(row) for row in rows]
