@@ -31,6 +31,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.entry_editor import EntryEditorDialog
+from src.queries import get_entry_by_id  
 from src.gui.claim_editor import ClaimEditorDialog
 from src.gui.evidence_editor import EvidenceEditorDialog
 from src.gui.graph_view import LinguisticGraphWindow
@@ -103,6 +105,7 @@ class EntryInspectorDialog(QDialog):
         classification_label = QLabel(f"Classification: {self.entry.classification}")
 
         self.edit_entry_button = QPushButton("Edit Entry Core")
+        self.edit_entry_button.clicked.connect(self.on_edit_entry_core)
         self.open_graph_button = QPushButton("Open Graph View")
 
         top_row = QHBoxLayout()
@@ -426,6 +429,39 @@ class EntryInspectorDialog(QDialog):
         self.graph_window.show()
         self.graph_window.raise_()
         self.graph_window.activateWindow()
+
+    def refresh_header_labels(self) -> None:
+        """
+        Update header card text labels after editing core entry fields.
+        """
+        # Find child labels in header_card or update them
+        for widget in self.header_card.findChildren(QLabel):
+            txt = widget.text()
+            if txt.startswith("Headword:"):
+                widget.setText(f"Headword: {self.entry.headword}")
+            elif txt.startswith("Lemma:"):
+                widget.setText(f"Lemma: {self.entry.lemma}")
+            elif txt.startswith("Homograph Index:"):
+                widget.setText(f"Homograph Index: {self.entry.homograph_index}")
+            elif txt.startswith("Provenance:"):
+                widget.setText(f"Provenance: {self.entry.provenance}")
+            elif txt.startswith("Classification:"):
+                widget.setText(f"Classification: {self.entry.classification}")
+
+    def on_edit_entry_core(self) -> None:
+        """
+        Launch the EntryEditorDialog to edit the core entry fields.
+        """
+        dialog = EntryEditorDialog(entry=self.entry, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Re-fetch updated entry from database
+            updated = get_entry_by_id(int(self.entry.id))
+            if updated:
+                self.entry = updated
+                self.refresh_header_labels()
+                self.setWindowTitle(
+                    f"Linguistic Inspector — {self.entry.headword} (Lemma: {self.entry.lemma})"
+                )
 
 
 def main() -> None:

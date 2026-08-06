@@ -324,14 +324,13 @@ def get_meanings_for_entry(entry_id: int) -> list[Meaning]:
 
 def get_all_entries() -> list[Entry]:
     """
-    Retrieve all entries in the database ordered alphabetically
-    by lemma and homograph index.
+    Retrieve all active (non-deleted) entries ordered by lemma and homograph index.
     """
     with get_connection() as conn:
         cursor = conn.execute(
             """
-            SELECT *
-            FROM entries
+            SELECT * FROM entries
+            WHERE is_deleted = 0
             ORDER BY lemma, homograph_index
             """
         )
@@ -386,20 +385,39 @@ def update_entry(entry: Entry) -> bool:
 
 
 
-def delete_entry(entry_id: int) -> bool:
+def delete_entry(entry_id: int, hard_delete: bool = False) -> bool:
     """
-    Delete an Entry. Child records are removed automatically via CASCADE.
+    Delete an Entry.
+    If hard_delete is False (default), performs a Soft Delete (moves to Trash Bin).
+    If hard_delete is True, permanently purges the entry and cascades child records.
     """
     with get_connection() as conn:
-        cursor = conn.execute(
-            """
-            DELETE FROM entries
-            WHERE id = ?
-            """,
-            (entry_id,),
-        )
+        if hard_delete:
+            cursor = conn.execute("DELETE FROM entries WHERE id = ?", (entry_id,))
+        else:
+            cursor = conn.execute("UPDATE entries SET is_deleted = 1 WHERE id = ?", (entry_id,))
 
         return cursor.rowcount > 0
+
+
+def restore_entry(entry_id: int) -> bool:
+    """
+    Restore a soft-deleted entry from the Trash Bin back to active status.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute("UPDATE entries SET is_deleted = 0 WHERE id = ?", (entry_id,))
+        return cursor.rowcount > 0
+
+
+def get_deleted_entries() -> list[Entry]:
+    """
+    Retrieve all soft-deleted entries currently sitting in the Trash Bin.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute("SELECT * FROM entries WHERE is_deleted = 1 ORDER BY updated_at DESC")
+        rows = cursor.fetchall()
+
+    return [row_to_entry(row) for row in rows]
 
 
 # ==========================================================

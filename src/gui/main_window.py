@@ -36,9 +36,11 @@ from src.export import export_entry_to_file
 from src.gui.entry_editor import EntryEditorDialog
 from src.gui.entry_view import EntryInspectorDialog
 from src.gui.graph_view import LinguisticGraphWindow
+from src.gui.trash_bin import TrashBinDialog
 from src.importers.csv_importer import import_entries_from_csv
 from src.models import Entry
 from src.queries import (
+    delete_entry,
     find_entries_by_lemma,
     get_all_entries,
     get_entry_by_id,
@@ -92,6 +94,11 @@ class TLREMainWindow(QMainWindow):
         self.graph_button = QPushButton("Open Graph")
         self.import_button = QPushButton("Import CSV")
         self.export_button = QPushButton("Export Record")
+        self.trash_button = QPushButton("Trash Bin 🗑️")
+        self.delete_button = QPushButton("Delete Entry")
+        self.delete_button.setStyleSheet(
+            "padding: 4px 10px; background: #C53030; color: white; font-weight: bold; border-radius: 4px;"
+        )
 
         search_layout.addWidget(search_label)
         search_layout.addWidget(self.search_input)
@@ -102,6 +109,8 @@ class TLREMainWindow(QMainWindow):
         search_layout.addWidget(self.graph_button)
         search_layout.addWidget(self.import_button)
         search_layout.addWidget(self.export_button)
+        search_layout.addWidget(self.trash_button)
+        search_layout.addWidget(self.delete_button)
 
         main_layout.addLayout(search_layout)
 
@@ -146,6 +155,8 @@ class TLREMainWindow(QMainWindow):
         self.graph_button.clicked.connect(self.on_open_graph)
         self.import_button.clicked.connect(self.on_import_csv)
         self.export_button.clicked.connect(self.on_export_entry)
+        self.trash_button.clicked.connect(self.on_open_trash_bin)
+        self.delete_button.clicked.connect(self.on_delete_entry)
 
         self.search_input.returnPressed.connect(self.on_search)
         self.search_input.textChanged.connect(self.on_search_text_changed)
@@ -372,6 +383,38 @@ class TLREMainWindow(QMainWindow):
             f"Research record exported to:\n{file_path}",
         )
 
+    def on_open_trash_bin(self) -> None:
+        dialog = TrashBinDialog(parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.load_entries()
+
+    def on_delete_entry(self) -> None:
+        """
+        Soft-delete the selected entry and move it to the Trash Bin.
+        """
+        row = self.table.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, "Selection Required", "Please select an entry to delete.")
+            return
+
+        item = self.table.item(row, 0)
+        if item is None:
+            return
+
+        entry_id = int(item.text())
+        
+        reply = QMessageBox.question(
+            self,
+            "Move to Trash Bin",
+            f"Do you want to move Entry ID {entry_id} to the Trash Bin?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            if delete_entry(entry_id, hard_delete=False):
+                QMessageBox.information(self, "Moved to Trash", "Entry moved to Trash Bin. You can restore it anytime!")
+                self.load_entries()
 
 def main() -> None:
     app = QApplication(sys.argv)

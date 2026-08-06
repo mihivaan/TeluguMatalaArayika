@@ -61,6 +61,9 @@ CREATE TABLE entries (
             )
         ),
 
+    is_deleted INTEGER NOT NULL 
+        DEFAULT 0 CHECK (is_deleted IN (0, 1)),
+
     created_at DATETIME NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
 
