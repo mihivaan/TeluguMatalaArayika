@@ -25,6 +25,9 @@ from src.models import (
     ResearchQuestion,
     QuestionRelationship,
     ResearchNote,
+    Source,
+    Citation,
+    Evidence,
 )
 from src.validation import (
     validate_provenance,
@@ -32,6 +35,8 @@ from src.validation import (
     validate_claim_status,
     validate_research_question_status,
     validate_question_relationship_type,
+    validate_evidence_type,
+    validate_evidence_role,
 )
 
 
@@ -840,3 +845,281 @@ def get_research_notes_for_entry(entry_id: int) -> list[ResearchNote]:
         rows = cursor.fetchall()
 
     return [row_to_research_note(row) for row in rows]
+
+
+# ==========================================================
+# Source & Citation Operations
+# ==========================================================
+
+def row_to_source(row: sqlite3.Row) -> Source:
+    """Convert a SQLite row into a Source dataclass."""
+    return Source(
+        id=row["id"],
+        name=row["name"],
+        author=row["author"],
+        publication_year=row["publication_year"],
+        source_type=row["source_type"],
+        description=row["description"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def row_to_citation(row: sqlite3.Row) -> Citation:
+    """Convert a SQLite row into a Citation dataclass."""
+    return Citation(
+        id=row["id"],
+        source_id=row["source_id"],
+        page=row["page"],
+        column_ref=row["column_ref"],
+        line_ref=row["line_ref"],
+        paragraph_ref=row["paragraph_ref"],
+        citation_text=row["citation_text"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def create_source(source: Source) -> int:
+    """
+    Insert a new Source into the database.
+    """
+    if not source.name.strip():
+        raise ValueError("Source name cannot be empty.")
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO sources (
+                name, author, publication_year, source_type, description
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                source.name,
+                source.author,
+                source.publication_year,
+                source.source_type,
+                source.description,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def get_all_sources() -> list[Source]:
+    """
+    Retrieve all bibliographic sources ordered by name.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute("SELECT * FROM sources ORDER BY name")
+        rows = cursor.fetchall()
+    return [row_to_source(row) for row in rows]
+
+
+def create_citation(citation: Citation) -> int:
+    """
+    Insert a new Citation into the database.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO citations (
+                source_id, page, column_ref, line_ref, paragraph_ref, citation_text
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                citation.source_id,
+                citation.page,
+                citation.column_ref,
+                citation.line_ref,
+                citation.paragraph_ref,
+                citation.citation_text,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def get_citations_for_source(source_id: int) -> list[Citation]:
+    """
+    Retrieve all citations for a given source.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM citations WHERE source_id = ? ORDER BY id",
+            (source_id,),
+        )
+        rows = cursor.fetchall()
+    return [row_to_citation(row) for row in rows]
+
+
+# ==========================================================
+# Citation & Source Lookup Helpers
+# ==========================================================
+
+def get_citation_by_id(citation_id: int) -> Citation | None:
+    """
+    Retrieve a Citation by its primary key.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM citations WHERE id = ?",
+            (citation_id,),
+        )
+        row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return row_to_citation(row)
+
+
+def get_source_by_id(source_id: int) -> Source | None:
+    """
+    Retrieve a Source by its primary key.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM sources WHERE id = ?",
+            (source_id,),
+        )
+        row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return row_to_source(row)
+
+
+def update_citation(citation: Citation) -> bool:
+    """
+    Update an existing Citation in the database.
+    """
+    if citation.id is None:
+        raise ValueError("Citation ID is required for update.")
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE citations
+            SET
+                source_id = ?,
+                page = ?,
+                column_ref = ?,
+                line_ref = ?,
+                paragraph_ref = ?,
+                citation_text = ?
+            WHERE id = ?
+            """,
+            (
+                citation.source_id,
+                citation.page,
+                citation.column_ref,
+                citation.line_ref,
+                citation.paragraph_ref,
+                citation.citation_text,
+                citation.id,
+            ),
+        )
+        return cursor.rowcount > 0
+
+
+# ==========================================================
+# Evidence Operations
+# ==========================================================
+
+def row_to_evidence(row: sqlite3.Row) -> Evidence:
+    """Convert a SQLite row into an Evidence dataclass."""
+    return Evidence(
+        id=row["id"],
+        claim_id=row["claim_id"],
+        citation_id=row["citation_id"],
+        evidence_type=row["evidence_type"],
+        evidence_role=row["evidence_role"],
+        evidence_text=row["evidence_text"],
+        notes=row["notes"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def add_evidence(evidence: Evidence) -> int:
+    """
+    Insert a new Evidence record into the database.
+    """
+    validate_evidence_type(evidence.evidence_type)
+    validate_evidence_role(evidence.evidence_role)
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO evidence (
+                claim_id,
+                citation_id,
+                evidence_type,
+                evidence_role,
+                evidence_text,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                evidence.claim_id,
+                evidence.citation_id,
+                evidence.evidence_type,
+                evidence.evidence_role,
+                evidence.evidence_text,
+                evidence.notes,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def update_evidence(evidence: Evidence) -> bool:
+    """
+    Update an existing Evidence record.
+    """
+    if evidence.id is None:
+        raise ValueError("Evidence ID is required for update.")
+
+    validate_evidence_type(evidence.evidence_type)
+    validate_evidence_role(evidence.evidence_role)
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE evidence
+            SET
+                claim_id = ?,
+                citation_id = ?,
+                evidence_type = ?,
+                evidence_role = ?,
+                evidence_text = ?,
+                notes = ?
+            WHERE id = ?
+            """,
+            (
+                evidence.claim_id,
+                evidence.citation_id,
+                evidence.evidence_type,
+                evidence.evidence_role,
+                evidence.evidence_text,
+                evidence.notes,
+                evidence.id,
+            ),
+        )
+        return cursor.rowcount > 0
+
+
+def get_evidence_for_claim(claim_id: int) -> list[Evidence]:
+    """
+    Retrieve all evidence records attached to a claim.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM evidence WHERE claim_id = ? ORDER BY id",
+            (claim_id,),
+        )
+        rows = cursor.fetchall()
+
+    return [row_to_evidence(row) for row in rows]
